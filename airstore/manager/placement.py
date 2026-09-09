@@ -60,12 +60,15 @@ class RuleBasedPlacementStrategy(PlacementStrategy):
             )
 
         if len(candidates) < replication_factor:
-            # We don't have enough distinct nodes to fulfill replication factor fully
-            # Select all available candidate nodes
             selected = candidates
         else:
-            # Sort candidates by available storage descending (load balance)
-            sorted_candidates = sorted(candidates, key=lambda n: n.available_storage, reverse=True)
+            # Multi-factor score calculation
+            def compute_node_score(n: NodeModel) -> float:
+                free_ratio = (n.available_storage / n.total_storage) if n.total_storage > 0 else 1.0
+                score = (n.available_storage / 1024 / 1024) * 0.7 + (free_ratio * 100.0) * 0.3
+                return score
+
+            sorted_candidates = sorted(candidates, key=compute_node_score, reverse=True)
             selected = sorted_candidates[:replication_factor]
 
         return selected

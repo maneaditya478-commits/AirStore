@@ -101,12 +101,23 @@ class StorageManagerService:
 
                 replica_num = 1
                 for node in target_nodes:
-                    node_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}"
-                    
-                    # HTTP PUT payload to node
-                    with httpx.Client(timeout=30.0) as client:
-                        resp = client.put(node_url, content=payload_data, params={"sha256": chunk_info.sha256 if not encrypted else None})
-                        resp.raise_for_status()
+                    already_exists = False
+                    if not encrypted:
+                        node_verify_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}/verify"
+                        try:
+                            with httpx.Client(timeout=3.0) as client:
+                                v_resp = client.get(node_verify_url, params={"sha256": chunk_info.sha256})
+                                if v_resp.status_code == 200 and v_resp.json().get("valid") is True:
+                                    already_exists = True
+                                    logger.info(f"Resumable upload: Chunk {chunk_info.chunk_id} verified on node {node.node_id}. Skipping retransmission.")
+                        except Exception:
+                            already_exists = False
+
+                    if not already_exists:
+                        node_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}"
+                        with httpx.Client(timeout=30.0) as client:
+                            resp = client.put(node_url, content=payload_data, params={"sha256": chunk_info.sha256 if not encrypted else None})
+                            resp.raise_for_status()
 
                     # Save replica metadata
                     replica = ChunkReplicaModel(

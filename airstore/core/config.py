@@ -1,8 +1,18 @@
 import os
+import socket
 import secrets
 from pathlib import Path
 from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
+
+def get_lan_ip() -> str:
+    """Get local LAN IP address of host machine."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
 
 class Settings(BaseSettings):
     # Cluster configuration
@@ -16,6 +26,7 @@ class Settings(BaseSettings):
     MANAGER_PORT: int = Field(default=8000)
     NODE_HOST: str = Field(default="127.0.0.1")
     NODE_PORT: int = Field(default=8001)
+    ADVERTISED_IP: str = Field(default="", description="Advertised LAN IP for node registration. Auto-detected if empty.")
     
     # Storage Paths
     BASE_DIR: Path = Path(os.getcwd())
@@ -25,12 +36,12 @@ class Settings(BaseSettings):
     
     # Security
     ENCRYPTION_ENABLED: bool = Field(default=False, description="Enable AES-GCM chunk encryption")
-    # Default 32-byte (256-bit) key for testing/dev, override in env via AIRSTORE_ENCRYPTION_KEY
     ENCRYPTION_KEY_HEX: str = Field(
         default="000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
         description="Hex string of 32-byte encryption key"
     )
     AUTH_SECRET: str = Field(default="airstore-secret-cluster-auth-key", description="Shared secret for node registration")
+    API_KEY: str = Field(default="", description="Optional bearer token for REST API security")
     
     @property
     def encryption_key(self) -> bytes:

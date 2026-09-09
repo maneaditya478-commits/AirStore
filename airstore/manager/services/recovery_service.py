@@ -1,4 +1,5 @@
 import uuid
+import threading
 import logging
 from typing import Dict, Any, List
 import httpx
@@ -15,7 +16,8 @@ logger = logging.getLogger("airstore.manager.recovery")
 
 class RecoveryService:
     """
-    Orchestrates fault detection and automatic data recovery for failed nodes.
+    Orchestrates fault detection, multi-node recovery, returning node reconciliation,
+    and replica consistency auditing.
     """
 
     def __init__(
@@ -25,8 +27,90 @@ class RecoveryService:
     ):
         self.db = db
         self.placement = placement_strategy or RuleBasedPlacementStrategy()
+        self._lock = threading.Lock()
+
+    def reconcile_returning_node(self, node_id: str) -> Dict[str, Any]:
+        """Reconcile missing replicas when a node comes back ONLINE."""
+        with self._lock:
+            missing_replicas = [r for r in self.db.get_replicas_for_node(node_id) if r.status == ReplicaStatus.MISSING]
+            reconciled = 0
+            node = self.db.get_node(node_id)
+            if not node:
+                return {"reconciled": 0}
+
+            for rep in missing_replicas:
+                # Query node verify endpoint
+                verify_url = f"http://{node.ip}:{node.port}/chunks/{rep.chunk_id}/verify"
+                try:
+                    with self.db.get_connection() as conn:
+                        chunk_row = conn.execute("SELECT sha256 FROM chunks WHERE chunk_id = ?;", (rep.chunk_id,)).fetchone()
+                    if chunk_row:
+                        with httpx.Client(timeout=3.0) as client:
+                            resp = client.get(verify_url, params={"sha256": chunk_row["sha256"]})
+                            if resp.status_code == 200 and resp.json().get("valid") is True:
+                                self.db.update_replica_status(rep.chunk_id, node_id, ReplicaStatus.STORED)
+                                reconciled += 1
+                except Exception:
+                    pass
+
+            if reconciled > 0:
+                logger.info(f"Node {node_id} returned online. Reconciled {reconciled} existing verified chunk replicas.")
+            return {"node_id": node_id, "reconciled": reconciled}
+
+    def audit_replica_consistency(self) -> Dict[str, Any]:
+        """Audit cluster-wide replica health and consistency status."""
+        files = self.db.list_files()
+        nodes = {n.node_id: n for n in self.db.list_nodes()}
+
+        total_files = len(files)
+        total_chunks = 0
+        total_replicas = 0
+        stored_replicas = 0
+        missing_replicas = 0
+        corrupted_replicas = 0
+        inconsistent_files = []
+
+        for f in files:
+            chunks = self.db.get_chunks_for_file(f.file_id)
+            total_chunks += len(chunks)
+            file_inconsistent = False
+
+            for c in chunks:
+                reps = self.db.get_replicas_for_chunk(c.chunk_id)
+                total_replicas += len(reps)
+
+                stored = 0
+                for r in reps:
+                    if r.status == ReplicaStatus.STORED:
+                        stored += 1
+                        stored_replicas += 1
+                    elif r.status == ReplicaStatus.MISSING:
+                        missing_replicas += 1
+                    elif r.status == ReplicaStatus.CORRUPTED:
+                        corrupted_replicas += 1
+
+                if stored < f.replication_factor:
+                    file_inconsistent = True
+
+            if file_inconsistent:
+                inconsistent_files.append(f.file_id)
+
+        return {
+            "total_files": total_files,
+            "total_chunks": total_chunks,
+            "total_replicas": total_replicas,
+            "stored_replicas": stored_replicas,
+            "missing_replicas": missing_replicas,
+            "corrupted_replicas": corrupted_replicas,
+            "inconsistent_files_count": len(inconsistent_files),
+            "healthy": len(inconsistent_files) == 0
+        }
 
     def recover_node_failure(self, failed_node_id: str) -> Dict[str, Any]:
+        with self._lock:
+            return self._execute_node_recovery(failed_node_id)
+
+    def _execute_node_recovery(self, failed_node_id: str) -> Dict[str, Any]:
         """
         Process failure of a node:
         1. Identify affected chunk replicas.
@@ -60,7 +144,7 @@ class RecoveryService:
         affected_replicas = self.db.get_replicas_for_node(failed_node_id)
         if not affected_replicas:
             logger.info(f"No active chunk replicas were hosted on failed node {failed_node_id}.")
-            return {"status": "completed", "recovered_chunks": 0, "failed_chunks": 0}
+            return {"status": "COMPLETED", "recovered_chunks": 0, "failed_chunks": 0}
 
         # Mark affected replicas on failed node as MISSING
         for rep in affected_replicas:

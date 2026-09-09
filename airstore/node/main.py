@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, Query, Header, status
 from fastapi.responses import Response, StreamingResponse
 import httpx
 
-from airstore.core.config import settings
+from airstore.core.config import settings, get_lan_ip
 from airstore.core.models import NodeStatus
 from airstore.node.storage import StorageEngine
 from airstore.node.registration import NodeRegister
@@ -28,6 +28,14 @@ def create_node_app(
     storage_engine = StorageEngine(storage_dir)
     hostname = socket.gethostname()
     
+    # Resolve advertised IP for LAN registration
+    advertised_ip = settings.ADVERTISED_IP
+    if not advertised_ip:
+        if host in ("0.0.0.0", "::"):
+            advertised_ip = get_lan_ip()
+        else:
+            advertised_ip = host
+    
     heartbeat_sender = HeartbeatSender(
         manager_url=manager_url,
         node_id=node_id,
@@ -39,7 +47,7 @@ def create_node_app(
         # Startup
         if auto_register:
             stats = storage_engine.get_stats()
-            registrar = NodeRegister(manager_url, node_id, hostname, host, port)
+            registrar = NodeRegister(manager_url, node_id, hostname, advertised_ip, port)
             res = registrar.register(stats["total_storage"], stats["available_storage"])
             if res.success:
                 logger.info(f"Storage node {node_id} successfully registered with manager.")
@@ -82,6 +90,8 @@ def create_node_app(
         request: Request,
         sha256: Optional[str] = Query(None)
     ):
+        if ".." in chunk_id or "/" in chunk_id or "\\" in chunk_id:
+            raise HTTPException(status_code=400, detail="Invalid chunk ID: Path traversal attempt detected.")
         try:
             body = await request.body()
             stored_bytes = storage_engine.store_chunk(chunk_id, body, expected_sha256=sha256)
@@ -97,6 +107,8 @@ def create_node_app(
 
     @app.get("/chunks/{chunk_id}")
     def get_chunk(chunk_id: str):
+        if ".." in chunk_id or "/" in chunk_id or "\\" in chunk_id:
+            raise HTTPException(status_code=400, detail="Invalid chunk ID: Path traversal attempt detected.")
         try:
             data = storage_engine.retrieve_chunk(chunk_id)
             return Response(content=data, media_type="application/octet-stream")
