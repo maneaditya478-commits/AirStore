@@ -90,44 +90,43 @@ class StorageManagerService:
             start_time = time.time()
             total_chunks = len(chunk_models)
             
-            for index, (chunk_info, chunk_bytes) in enumerate(FileChunker.stream_chunks(path, file_id=file_id, chunk_size=chunk_size)):
-                # Decides nodes for this chunk's replicas
-                target_nodes = self.placement.select_nodes_for_chunk(
-                    chunk_info, active_nodes, replication_factor
-                )
+            with httpx.Client(timeout=30.0) as client:
+                for index, (chunk_info, chunk_bytes) in enumerate(FileChunker.stream_chunks(path, file_id=file_id, chunk_size=chunk_size)):
+                    # Decides nodes for this chunk's replicas
+                    target_nodes = self.placement.select_nodes_for_chunk(
+                        chunk_info, active_nodes, replication_factor
+                    )
 
-                # Prepare payload (encrypt if configured)
-                payload_data = encryptor.encrypt_chunk(chunk_bytes) if encryptor else chunk_bytes
+                    # Prepare payload (encrypt if configured)
+                    payload_data = encryptor.encrypt_chunk(chunk_bytes) if encryptor else chunk_bytes
 
-                replica_num = 1
-                for node in target_nodes:
-                    already_exists = False
-                    if not encrypted:
-                        node_verify_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}/verify"
-                        try:
-                            with httpx.Client(timeout=3.0) as client:
+                    replica_num = 1
+                    for node in target_nodes:
+                        already_exists = False
+                        if not encrypted:
+                            node_verify_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}/verify"
+                            try:
                                 v_resp = client.get(node_verify_url, params={"sha256": chunk_info.sha256})
                                 if v_resp.status_code == 200 and v_resp.json().get("valid") is True:
                                     already_exists = True
                                     logger.info(f"Resumable upload: Chunk {chunk_info.chunk_id} verified on node {node.node_id}. Skipping retransmission.")
-                        except Exception:
-                            already_exists = False
+                            except Exception:
+                                already_exists = False
 
-                    if not already_exists:
-                        node_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}"
-                        with httpx.Client(timeout=30.0) as client:
+                        if not already_exists:
+                            node_url = f"http://{node.ip}:{node.port}/chunks/{chunk_info.chunk_id}"
                             resp = client.put(node_url, content=payload_data, params={"sha256": chunk_info.sha256 if not encrypted else None})
                             resp.raise_for_status()
 
-                    # Save replica metadata
-                    replica = ChunkReplicaModel(
-                        chunk_id=chunk_info.chunk_id,
-                        node_id=node.node_id,
-                        replica_number=replica_num,
-                        status=ReplicaStatus.STORED
-                    )
-                    self.db.add_replica(replica)
-                    replica_num += 1
+                        # Save replica metadata
+                        replica = ChunkReplicaModel(
+                            chunk_id=chunk_info.chunk_id,
+                            node_id=node.node_id,
+                            replica_number=replica_num,
+                            status=ReplicaStatus.STORED
+                        )
+                        self.db.add_replica(replica)
+                        replica_num += 1
 
                 # Update transfer progress
                 progress = round(((index + 1) / total_chunks) * 100.0, 2)

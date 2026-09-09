@@ -16,8 +16,8 @@ class NodeRegister:
         self.ip = ip
         self.port = port
 
-    def register(self, total_storage: int, available_storage: int) -> NodeRegistrationResponse:
-        """Send registration request to Manager REST API."""
+    def register(self, total_storage: int, available_storage: int, retries: int = 3, delay: float = 0.5) -> NodeRegistrationResponse:
+        """Send registration request to Manager REST API with retries."""
         url = f"{self.manager_url}/api/nodes/register"
         payload = NodeRegistrationRequest(
             node_id=self.node_id,
@@ -29,16 +29,23 @@ class NodeRegister:
             auth_secret=settings.AUTH_SECRET
         )
 
-        try:
-            with httpx.Client(timeout=5.0) as client:
-                resp = client.post(url, json=payload.model_dump())
-                resp.raise_for_status()
-                data = resp.json()
-                return NodeRegistrationResponse(**data)
-        except Exception as e:
-            logger.error(f"Failed to register node {self.node_id} with manager at {url}: {e}")
-            return NodeRegistrationResponse(
-                success=False,
-                node_id=self.node_id,
-                message=f"Registration request failed: {str(e)}"
-            )
+        last_error = None
+        for attempt in range(1, retries + 1):
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    resp = client.post(url, json=payload.model_dump())
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return NodeRegistrationResponse(**data)
+            except Exception as e:
+                last_error = e
+                if attempt < retries:
+                    import time
+                    time.sleep(delay)
+
+        logger.error(f"Failed to register node {self.node_id} with manager at {url}: {last_error}")
+        return NodeRegistrationResponse(
+            success=False,
+            node_id=self.node_id,
+            message=f"Registration request failed: {str(last_error)}"
+        )

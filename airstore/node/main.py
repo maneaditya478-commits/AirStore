@@ -62,7 +62,7 @@ def create_node_app(
     app = FastAPI(
         title=f"AirStore Storage Node {node_id}",
         description="AirStore local storage node API",
-        version="0.1.0",
+        version="1.1.0",
         lifespan=lifespan
     )
     

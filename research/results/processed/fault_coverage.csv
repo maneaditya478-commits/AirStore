@@ -1,0 +1,11 @@
+scenario,description,runs,status,success_rate,integrity_success_rate,notes
+F1,Node failure after successful upload,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.
+F2,Node failure during upload,0,NOT_EXECUTED,0.0%,0.0%,NOT EXECUTED — Real-time thread kill mid-upload requires external process daemon injection.
+F3,Node failure during download,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.
+F4,Node failure during replication,0,NOT_EXECUTED,0.0%,0.0%,NOT EXECUTED — Interrupted async replication stream simulation requires mock socket disconnects.
+F5,Stored chunk corruption,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.
+F6,Network interruption,0,NOT_EXECUTED,0.0%,0.0%,NOT EXECUTED — HARDWARE/LAN REQUIRED (Physical Ethernet/Wi-Fi disconnection).
+F7,Disk-full condition,0,NOT_EXECUTED,0.0%,0.0%,NOT EXECUTED — OS DISK CONTROL REQUIRED (Requires physical volume capacity exhaustion).
+F8,Returning node reconciliation,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.
+F9,Interrupted transfer / resumable recovery,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.
+F10,Multiple-node failure,5,PASS,100%,100%,Executed 5 runs. All integrity checks passed.

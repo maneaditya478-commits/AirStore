@@ -43,7 +43,7 @@ def create_manager_app(db_path: Optional[Path] = None, start_monitor: bool = Tru
     app = FastAPI(
         title="AirStore Manager Node API",
         description="AirStore Offline Distributed Storage Controller",
-        version="0.1.0",
+        version="1.1.0",
         lifespan=lifespan
     )
 

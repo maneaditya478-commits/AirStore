@@ -1,0 +1,11 @@
+experiment_id,experiment_name,runs,success_rate,mean_detection_time_seconds,median_detection_time_seconds,min_detection_time_seconds,max_detection_time_seconds,std_detection_time_seconds,mean_recovery_time_seconds,median_recovery_time_seconds,min_recovery_time_seconds,max_recovery_time_seconds,std_recovery_time_seconds,integrity_success_rate
+F1,Node failure after successful upload,5,1.0,0.205,0.2,0.2,0.225,0.011,2.788,2.78,2.729,2.848,0.05,1.0
+F2,Node failure during upload,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F3,Node failure during download,5,1.0,0.001,0.001,0.001,0.001,0.0,1.428,1.431,1.371,1.463,0.035,1.0
+F4,Node failure during replication,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F5,Stored chunk corruption,5,1.0,0.001,0.001,0.001,0.001,0.0,1.08,1.077,1.058,1.104,0.022,1.0
+F6,Network interruption,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F7,Disk-full condition,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F8,Returning node reconciliation,5,1.0,1.46,1.474,1.408,1.497,0.039,1.122,1.142,1.001,1.164,0.069,1.0
+F9,Interrupted transfer / resumable recovery,5,1.0,5.853,5.73,5.719,6.048,0.177,5.871,5.821,5.774,6.13,0.147,1.0
+F10,Multiple-node failure,5,1.0,2.593,3.245,0.004,3.252,1.447,2.227,2.767,0.013,2.819,1.238,1.0
