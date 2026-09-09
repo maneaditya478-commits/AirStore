@@ -1,0 +1,3 @@
+"""
+AirStore CLI package.
+"""

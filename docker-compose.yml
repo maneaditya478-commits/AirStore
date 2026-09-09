@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  manager:
+    build: .
+    container_name: airstore_manager
+    ports:
+      - "8000:8000"
+    environment:
+      - AIRSTORE_MANAGER_HOST=0.0.0.0
+      - AIRSTORE_MANAGER_PORT=8000
+    volumes:
+      - manager_data:/app/data
+
+  node-a:
+    build: .
+    container_name: airstore_node_a
+    command: python -m airstore.cli.main node start --id node_a --host 0.0.0.0 --port 8001 --manager-url http://manager:8000
+    ports:
+      - "8001:8001"
+    depends_on:
+      - manager
+    volumes:
+      - node_a_data:/app/data/node_a
+
+  node-b:
+    build: .
+    container_name: airstore_node_b
+    command: python -m airstore.cli.main node start --id node_b --host 0.0.0.0 --port 8002 --manager-url http://manager:8000
+    ports:
+      - "8002:8002"
+    depends_on:
+      - manager
+    volumes:
+      - node_b_data:/app/data/node_b
+
+  node-c:
+    build: .
+    container_name: airstore_node_c
+    command: python -m airstore.cli.main node start --id node_c --host 0.0.0.0 --port 8003 --manager-url http://manager:8000
+    ports:
+      - "8003:8003"
+    depends_on:
+      - manager
+    volumes:
+      - node_c_data:/app/data/node_c
+
+volumes:
+  manager_data:
+  node_a_data:
+  node_b_data:
+  node_c_data:

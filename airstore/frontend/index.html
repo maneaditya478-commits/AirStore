@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirStore - Offline Distributed Storage Network</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i class="fa-solid fa-network-wired brand-icon"></i>
+                <div class="brand-text">
+                    <h2>AirStore</h2>
+                    <span class="brand-badge"><i class="fa-solid fa-wifi-slash"></i> OFFLINE LAN</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </a>
+                <a href="#files" class="nav-item" data-tab="files">
+                    <i class="fa-solid fa-folder-open"></i> Files
+                </a>
+                <a href="#nodes" class="nav-item" data-tab="nodes">
+                    <i class="fa-solid fa-server"></i> Storage Nodes
+                </a>
+                <a href="#transfers" class="nav-item" data-tab="transfers">
+                    <i class="fa-solid fa-right-left"></i> Active Transfers
+                </a>
+                <a href="#events" class="nav-item" data-tab="events">
+                    <i class="fa-solid fa-list-check"></i> Event Audit Log
+                </a>
+                <a href="#settings" class="nav-item" data-tab="settings">
+                    <i class="fa-solid fa-gear"></i> System Settings
+                </a>
+            </nav>
+
+            <div class="system-status-widget">
+                <div class="status-indicator online" id="global-status-dot"></div>
+                <div class="status-info">
+                    <span class="status-title">Cluster Status</span>
+                    <span class="status-value" id="global-status-text">HEALTHY</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content View -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p class="subtitle">Private Distributed Local Storage Monitor</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-quick-upload">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+                    </button>
+                    <button class="btn btn-secondary" id="btn-refresh">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-blue"><i class="fa-solid fa-database"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Total Capacity</span>
+                            <h3 class="stat-value" id="stat-total-storage">--</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-green"><i class="fa-solid fa-hard-drive"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Available Storage</span>
+                            <h3 class="stat-value" id="stat-avail-storage">--</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-purple"><i class="fa-solid fa-chart-pie"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Used Storage</span>
+                            <h3 class="stat-value" id="stat-used-storage">--</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-orange"><i class="fa-solid fa-server"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Nodes (Online/Total)</span>
+                            <h3 class="stat-value" id="stat-nodes-count">--</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-panels">
+                    <div class="panel flex-2">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-server"></i> Node Health Overview</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="nodes-mini-grid" id="dash-nodes-container">
+                                <!-- Nodes rendered dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel flex-1">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h3>
+                        </div>
+                        <div class="panel-body">
+                            <ul class="activity-feed" id="dash-activity-feed">
+                                <!-- Recent events rendered dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: FILES -->
+            <section id="tab-files" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-file-shield"></i> Stored Files</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Size</th>
+                                    <th>Chunks</th>
+                                    <th>Replicas</th>
+                                    <th>SHA-256 Hash</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="files-table-body">
+                                <!-- Files rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: NODES -->
+            <section id="tab-nodes" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-network-wired"></i> Storage Cluster Nodes</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="nodes-full-grid" id="nodes-full-container">
+                            <!-- Detailed node cards -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: TRANSFERS -->
+            <section id="tab-transfers" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-gauge-high"></i> Active Transfers & Progress</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Transfer ID</th>
+                                    <th>Type</th>
+                                    <th>Progress</th>
+                                    <th>Speed</th>
+                                    <th>Status</th>
+                                    <th>Started At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfers-table-body">
+                                <!-- Transfers rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: EVENTS -->
+            <section id="tab-events" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-list-check"></i> System Audit Log</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Event Type</th>
+                                    <th>Message</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="events-table-body">
+                                <!-- Events rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 6: SETTINGS -->
+            <section id="tab-settings" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-sliders"></i> Cluster Configuration</h3>
+                    </div>
+                    <div class="panel-body settings-form">
+                        <div class="form-group">
+                            <label>Default Chunk Size</label>
+                            <input type="text" value="64 MB (67,108,864 bytes)" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Replication Factor</label>
+                            <input type="text" value="2x Replicas" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Integrity Check Algorithm</label>
+                            <input type="text" value="SHA-256 Checksum Verification" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>AES-GCM Encryption</label>
+                            <input type="text" value="Supported (256-bit Key)" readonly>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal" id="modal-upload">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload File to AirStore</h3>
+                <span class="close-modal" id="close-upload-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="upload-form">
+                    <div class="file-drop-zone" id="drop-zone">
+                        <i class="fa-solid fa-file-arrow-up drop-icon"></i>
+                        <p>Drag & Drop file here or <span class="highlight">Browse</span></p>
+                        <input type="file" id="file-input" required hidden>
+                        <span id="selected-file-name" class="file-selected-name"></span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Chunk Size (Bytes)</label>
+                            <input type="number" id="chunk-size-input" value="67108864" min="1024">
+                        </div>
+                        <div class="form-group">
+                            <label>Replication Factor</label>
+                            <input type="number" id="replication-input" value="2" min="1" max="5">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-submit-upload">Start Distributed Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Detail Modal -->
+    <div class="modal" id="modal-file-detail">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-circle-info"></i> File Distribution Metadata</h3>
+                <span class="close-modal" id="close-detail-modal">&times;</span>
+            </div>
+            <div class="modal-body" id="file-detail-content">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
