@@ -9,6 +9,7 @@ import threading
 from pathlib import Path
 from airstore.core.config import settings
 from airstore.core.hashing import calculate_file_hash
+from airstore.core.models import NodeStatus
 from airstore.manager.main import create_manager_app
 from airstore.node.main import create_node_app
 
@@ -65,7 +66,14 @@ def run_benchmark(output_csv: Path = Path("benchmark_results.csv")):
         node_servers.append(srv)
         nodes.append(node_id)
 
-    time.sleep(1.0)
+    time.sleep(2.0)
+    db = mgr_app.state.db
+    # Wait for nodes to register
+    for _ in range(20):
+        if len(db.list_nodes()) == 3:
+            break
+        time.sleep(0.5)
+
     storage_svc = mgr_app.state.storage_service
     recovery_svc = mgr_app.state.recovery_service
 
@@ -110,10 +118,13 @@ def run_benchmark(output_csv: Path = Path("benchmark_results.csv")):
                     cpu_after = process.cpu_percent()
                     mem_after = process.memory_info().rss / (1024 * 1024)
 
-                    # Measure Recovery (Fail node 1)
-                    t2 = time.time()
-                    rec_res = recovery_svc.recover_node_failure("bench_node_1")
-                    t_recovery = time.time() - t2
+                    # Measure Recovery (if repl >= 2)
+                    t_recovery = 0.0
+                    if repl >= 2:
+                        t2 = time.time()
+                        rec_res = recovery_svc.recover_node_failure("bench_node_1")
+                        t_recovery = time.time() - t2
+                        mgr_app.state.db.update_node_status("bench_node_1", NodeStatus.ONLINE)
 
                     row = {
                         "file_size_mb": size_mb,
@@ -130,9 +141,6 @@ def run_benchmark(output_csv: Path = Path("benchmark_results.csv")):
 
                     print(f"[*] Benchmark -> Size: {size_mb}MB | Chunk: {chunk_kb}KB | Repl: {repl}x")
                     print(f"    Upload: {upload_mbps} MB/s | Download: {download_mbps} MB/s | Recovery: {round(t_recovery, 3)}s")
-
-                    # Re-register node 1 for next iterations
-                    mgr_app.state.db.update_node_status("bench_node_1", "ONLINE")
 
         # Write CSV
         with open(output_csv, "w", newline="") as f:

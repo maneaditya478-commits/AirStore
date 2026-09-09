@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from airstore.core.models import (
     NodeModel, FileModel, ChunkModel, ChunkReplicaModel, TransferModel, EventModel,
     NodeStatus, FileStatus, ReplicaStatus, TransferType, TransferStatus, EventType
@@ -143,9 +143,10 @@ class DatabaseManager:
             conn.commit()
             return cursor.rowcount > 0
 
-    def update_node_status(self, node_id: str, status: NodeStatus) -> bool:
+    def update_node_status(self, node_id: str, status: Union[NodeStatus, str]) -> bool:
+        status_val = status.value if hasattr(status, 'value') else status
         with self.get_connection() as conn:
-            cursor = conn.execute("UPDATE nodes SET status = ? WHERE node_id = ?;", (status.value, node_id))
+            cursor = conn.execute("UPDATE nodes SET status = ? WHERE node_id = ?;", (status_val, node_id))
             conn.commit()
             return cursor.rowcount > 0
 
